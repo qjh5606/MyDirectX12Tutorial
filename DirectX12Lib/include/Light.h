@@ -7,13 +7,6 @@ class FLight
 public:
 	FLight();
 
-	void SetColor(const Vector3f& color) 
-	{
-		Color = color;
-	}
-
-	const Vector3f& GetColor() const { return Color; }
-
 protected:
 	Vector3f Position;
 	Vector3f Color;
