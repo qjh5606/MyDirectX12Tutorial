@@ -35,13 +35,18 @@ cbuffer Contants : register(b0)
 {
 	float BloomIntensity;
 	float BloomThreshold;
+	float EnableTonmapping;
 };
-
 
 float4 PS_ToneMapAndBloom(in VertexOutput Input) : SV_Target0
 {
 	float3 Color = SceneColorTexture.Sample(LinearSampler, Input.Tex).xyz;
 	float3 Bloom = BloomTexture.Sample(LinearSampler, Input.Tex).xyz;
+
+	if (EnableTonmapping == 0)
+	{
+		return float4(Color, 1.0);
+	}
 	return float4(ToneMapping(Color + Bloom * BloomIntensity), 1.0);
 }
 

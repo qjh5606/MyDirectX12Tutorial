@@ -41,6 +41,7 @@
 	include/DepthOfField.h
 	include/ScreenSpaceSubsurface.h
 	include/UserMarkers.h
+	include/AmbientOcclusion.h
 )
 
 set(SOURCES
@@ -83,6 +84,7 @@ set(SOURCES
 	src/DepthOfField.cpp
 	src/ScreenSpaceSubsurface.cpp
 	src/UserMarkers.cpp
+	src/AmbientOcclusion.cpp
 )
 
 set( IMGUI_HEADERS
@@ -146,6 +148,9 @@ set(SHADER_FILES
 	../Resources/shaders/PreIntegratedSkinShading.hlsl
 	../Resources/shaders/LTC_Floor.hlsl
 	../Resources/shaders/LTC_LightPolygon.hlsl
+	../Resources/shaders/SponzaBasePass.hlsl
+	../Resources/shaders/SSAO.hlsl
+	../Resources/shaders/SSAO_Blur.hlsl
 )
 
 source_group("Shaders" FILES ${SHADER_FILES})

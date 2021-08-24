@@ -24,6 +24,8 @@ extern FCommandListManager g_CommandListManager;
 
 namespace PostProcessing
 {
+	bool g_EnableTonmapping = true;
+
 	// bloom
 	bool g_EnableBloom = true;
 	float g_BloomIntensity = 0.5f;
@@ -67,6 +69,7 @@ namespace PostProcessing
 	{
 		float BloomIntensity;
 		float BloomThreshold;
+		float EnableTonmapping;
 	} m_Constants;
 }
 
@@ -272,6 +275,7 @@ void PostProcessing::ToneMapping(FCommandContext& CommandContext)
 
 	m_Constants.BloomIntensity = g_BloomIntensity;
 	m_Constants.BloomThreshold = g_BloomThreshold;
+	m_Constants.EnableTonmapping = g_EnableTonmapping;
 	CommandContext.SetDynamicConstantBufferView(0, sizeof(m_Constants), &m_Constants);
 
 	if (g_DebugSSR)

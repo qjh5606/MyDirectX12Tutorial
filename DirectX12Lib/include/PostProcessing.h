@@ -7,6 +7,7 @@ class FCommandContext;
 
 namespace PostProcessing
 {
+	extern bool g_EnableTonmapping;
 	extern bool g_EnableBloom;
 	extern float g_BloomIntensity;
 	extern float g_BloomThreshold;

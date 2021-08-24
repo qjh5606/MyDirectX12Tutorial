@@ -8,7 +8,7 @@ static FMatrix ProjToTexture(
 
 FLight::FLight()
 {
-	Color = Vector3f(1.f);
+	m_Color = Vector3f(1.f);
 }
 
 FDirectionalLight::FDirectionalLight()

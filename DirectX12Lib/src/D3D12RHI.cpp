@@ -21,6 +21,7 @@
 #include "PostProcessing.h"
 #include "DepthOfField.h"
 #include "ScreenSpaceSubsurface.h"
+#include "AmbientOcclusion.h"
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
@@ -181,11 +182,14 @@ bool D3D12RHI::Initialize()
 	DepthOfField::Initialize();
 	PostProcessing::Initialize();
 	ScreenSpaceSubsurface::Initialize();
+	AmbientOcclusion::Initialize();
+
 	return true;
 }
 
 void D3D12RHI::Destroy()
 {
+	AmbientOcclusion::Destroy();
 	ScreenSpaceSubsurface::Destroy();
 	PostProcessing::Destroy();
 	MotionBlur::Destroy();

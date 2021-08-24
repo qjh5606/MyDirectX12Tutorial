@@ -75,10 +75,6 @@ MeshData* FObjLoader::LoadObj(const std::string& FilePath, bool FlipV, bool Nega
 				line_str += 2;
 				// vt, texture coordinate
 				ParseFloat2(line_str, x, y);
-				if (x > 1)
-					x -= floor(x);
-				if (y > 1)
-					y -= floor(y);
 				texcoords.push_back(x);
 				if (FlipV)
 					texcoords.push_back(1 - y);
