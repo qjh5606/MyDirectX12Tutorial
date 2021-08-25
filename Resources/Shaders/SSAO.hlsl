@@ -16,8 +16,6 @@ cbuffer PSContant : register(b0)
 	float4x4	ViewProjMatrix;
 	float4		Samples[64];
 	float		Radius;
-	float		Near;
-	float		Far;
 };
 
 static const int kernelSize = 64;

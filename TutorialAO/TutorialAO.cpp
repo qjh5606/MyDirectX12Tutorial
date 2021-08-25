@@ -42,13 +42,6 @@ const int PREFILTERED_SIZE = 256;
 
 using namespace BufferManager;
 
-enum EShowMode
-{
-	SM_SSAO,
-	SM_HBAO,
-	SM_GTAO
-};
-
 class TutorialAO : public FGame
 {
 public:
@@ -136,17 +129,30 @@ public:
 			ImGui::BeginGroup();
 			ImGui::Text("Show Mode");
 			ImGui::Indent(20);
-			ImGui::RadioButton("SSAO", &m_ShowMode, SM_SSAO);
-			ImGui::RadioButton("HBAO", &m_ShowMode, SM_HBAO);
-			ImGui::RadioButton("GTAO", &m_ShowMode, SM_GTAO);
+			ImGui::RadioButton("SSAO", &AmbientOcclusion::g_AOType, AmbientOcclusion::AOType::SSAO);
+			ImGui::RadioButton("HBAO", &AmbientOcclusion::g_AOType, AmbientOcclusion::AOType::HBAO);
+			ImGui::RadioButton("GTAO", &AmbientOcclusion::g_AOType, AmbientOcclusion::AOType::GTAO);
 			ImGui::Indent(-20);
 			ImGui::EndGroup();
 
-			if (m_ShowMode==SM_SSAO)
+			if (AmbientOcclusion::g_AOType == AmbientOcclusion::AOType::SSAO)
 			{
-				ImGui::SliderFloat("SSAO Trace Radius", &AmbientOcclusion::g_TraceRadius, 0.1f, 3.f);
-				ImGui::SliderInt("SSAO Blur Radius", &AmbientOcclusion::g_BlurRadius, 2, 5);
+				ImGui::SliderFloat("SSAO Trace Radius", &AmbientOcclusion::g_SSAOTraceRadius, 0.1f, 1.0f);
+				ImGui::SliderInt("SSAO Blur Radius", &AmbientOcclusion::g_SSAOBlurRadius, 1, 5);
 			}
+			else if (AmbientOcclusion::g_AOType == AmbientOcclusion::AOType::HBAO)
+			{
+				ImGui::SliderInt("HBAO Num Directions", &AmbientOcclusion::g_HBAONumDirections, 4, 8);
+				ImGui::SliderInt("HBAO Num Samples", &AmbientOcclusion::g_HBAONumSamples, 3, 5);
+				ImGui::SliderFloat("HBAO Trace Radius", &AmbientOcclusion::g_HBAOTraceRadius, 0.1f, 1.0f);
+				ImGui::SliderInt("HBAO Max RadiusPixels", &AmbientOcclusion::g_HBAOMaxRadiusPixels, 30, 50);
+				ImGui::SliderInt("HBAO Blur Radius", &AmbientOcclusion::g_HBAOBlurRadius, 1, 5);
+			}
+			else if (AmbientOcclusion::g_AOType == AmbientOcclusion::AOType::GTAO)
+			{
+
+			}
+
 		}
 		ImGui::End();
 
@@ -159,7 +165,7 @@ public:
 
 		BasePass(CommandContext, true);
 		
-		AmbientOcclusion::Render(CommandContext, m_Camera);
+		AmbientOcclusion::Render(CommandContext, m_Camera,(AmbientOcclusion::AOType)AmbientOcclusion::g_AOType);
 
 		PostProcessing::Render(CommandContext);
 
@@ -350,7 +356,7 @@ private:
 	FRootSignature				m_MeshSignature;
 	FGraphicsPipelineState		m_MeshPSO;
 
-	int							m_ShowMode = 0;
+	int							m_AOType = AmbientOcclusion::AOType::SSAO;
 
 	// 
 	D3D12_VIEWPORT		m_MainViewport;
