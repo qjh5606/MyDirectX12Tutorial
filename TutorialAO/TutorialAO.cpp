@@ -260,7 +260,12 @@ private:
 		m_MeshPSO.SetInputLayout((UINT)MeshLayout.size(), &MeshLayout[0]);
 
 		m_MeshPSO.SetRootSignature(m_MeshSignature);
-		m_MeshPSO.SetRasterizerState(FPipelineState::RasterizerTwoSided);
+
+		D3D12_RASTERIZER_DESC CullBack = FPipelineState::RasterizerTwoSided;
+		CullBack.DepthClipEnable = TRUE;
+		CullBack.CullMode = D3D12_CULL_MODE_BACK;
+		m_MeshPSO.SetRasterizerState(CullBack);
+		//m_MeshPSO.SetRasterizerState(FPipelineState::RasterizerTwoSided);
 		m_MeshPSO.SetBlendState(FPipelineState::BlendDisable);
 
 		m_MeshPSO.SetDepthStencilState(FPipelineState::DepthStateReadWrite);
@@ -337,7 +342,7 @@ private:
 
 		m_Sponza->Draw(GfxContext);
 
-#if 0
+#if 1
 		BasePass_VSConstants.ModelMatrix = m_Lucky->GetModelMatrix();
 		GfxContext.SetDynamicConstantBufferView(0, sizeof(BasePass_VSConstants), &BasePass_VSConstants);
 		m_Lucky->Draw(GfxContext);

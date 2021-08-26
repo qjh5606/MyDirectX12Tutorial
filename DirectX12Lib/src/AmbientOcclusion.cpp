@@ -359,8 +359,8 @@ void AmbientOcclusion::RenderHBAO(FCommandContext& CommandContext, FCamera& Came
 
 void AmbientOcclusion::RenderGTAO(FCommandContext& CommandContext, FCamera& Camera)
 {
-	const float rotations[6] = { 60.0f, 300.0f, 180.0f, 240.0f, 120.0f, 0.0f };
-	const float offsets[4] = { 0.1f, 0.6f, 0.35f, 0.85f };
+	const float Rots[6] = { 60.0f, 300.0f, 180.0f, 240.0f, 120.0f, 0.0f };
+	const float Offsets[4] = { 0.1f, 0.6f, 0.35f, 0.85f };
 
 	// GTAO Generate
 	{
@@ -384,7 +384,7 @@ void AmbientOcclusion::RenderGTAO(FCommandContext& CommandContext, FCamera& Came
 			FMatrix		ViewMatrix;
 			Vector4f	Resolution;			// width height 1/width 1/height
 			Vector4f	ClipInfo;
-			Vector2f	Params;				// angle and offset
+			Vector4f	GTAOParams;			
 		} Constants;
 
 		Constants.InvProjMatrix = Camera.GetProjectionMatrix().Inverse();
@@ -395,8 +395,15 @@ void AmbientOcclusion::RenderGTAO(FCommandContext& CommandContext, FCamera& Came
 		Constants.Resolution = Vector4f(Width, Height, 1.0f / Width, 1.0f / Height);
 
 		// start rotation
-		Constants.Params[0] = rotations[CurrSampleFrame % 6] / 360.0f;
-		Constants.Params[1] = offsets[(CurrSampleFrame / 6) % 4];
+		float TemporalAngle = Rots[CurrSampleFrame % 6] * (MATH_PI / 360.0f);
+		float SinAngle, CosAngle;
+		SinAngle = sin(TemporalAngle);
+		CosAngle = cos(TemporalAngle);
+
+		Constants.GTAOParams[0] = CosAngle;
+		Constants.GTAOParams[1] = SinAngle;
+		Constants.GTAOParams[2] = Offsets[(CurrSampleFrame / 6) % 4] * 0.25;
+		Constants.GTAOParams[3] = Offsets[CurrSampleFrame % 4];
 
 		// near far
 		Constants.ClipInfo[0] = Camera.GetNearClip();

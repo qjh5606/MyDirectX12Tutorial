@@ -16,7 +16,7 @@ cbuffer PSContant : register(b0)
 	float4x4	ViewMatrix;
 	float4		Resolution;			// width height 1/width 1/height
 	float4		ClipInfo;
-	float2		Params;				// angle and offset
+	float4		GTAOParams;			// cos sin angle 
 };
 
 struct PixelOutput
@@ -43,6 +43,38 @@ float3 ReconstructViewPos(float2 Tex)
 	float2 XY = ScreenCoord * ClipInfo.zw * Z;
 	return float3(XY, Z);
 #endif
+}
+
+//Ωª¥ÌÃ›∂»‘Î…˘
+//http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+//https://bartwronski.com/2016/10/30/dithering-part-three-real-world-2d-quantization-dithering/
+float InterleavedGradientNoise(float2 iPos)
+{
+	return frac(52.9829189f * frac((iPos.x * 0.06711056) + (iPos.y * 0.00583715)));
+}
+
+float3 GetRandomVector(uint2 iPos)
+{
+	iPos.y = 16384 - iPos.y;
+
+	float3 RandomVec = float3(0, 0, 0);
+	float3 RandomTexVec = float3(0, 0, 0);
+	float ScaleOffset;
+
+	float TemporalCos = GTAOParams.x;
+	float TemporalSin = GTAOParams.y;
+	float GradientNoise = InterleavedGradientNoise(float2(iPos));
+
+	RandomTexVec.x = cos((GradientNoise * PI));
+	RandomTexVec.y = sin((GradientNoise * PI));
+
+	ScaleOffset = (1.0 / 4.0) * ((iPos.y - iPos.x) & 3);
+
+	RandomVec.x = dot(RandomTexVec.xy, float2(TemporalCos, -TemporalSin));
+	RandomVec.y = dot(RandomTexVec.xy, float2(TemporalSin, TemporalCos));
+	RandomVec.z = frac(ScaleOffset + GTAOParams.z);
+
+	return RandomVec;
 }
 
 float2 SearchForLargestAngleDual(uint NumSteps, float2 BaseUV, float2 ScreenDir, float3 ViewPos, float3 ViewDir)
@@ -139,21 +171,36 @@ PixelOutput PS_GTAO(float2 Tex : TEXCOORD, float4 ScreenPos : SV_Position)
 	// view normal
 	float3 WorldNormal = GBufferA.SampleLevel(LinearSampler, Tex, 0).rgb;
 	WorldNormal = WorldNormal * 2 - 1;
+
+	//float3 L = float3(0, 0, -1);
+	//float NoL = saturate(dot(WorldNormal, L));
+	//Out.Target0 = float4(NoL, NoL, NoL, 1);
+	//return Out;
+
 	float3 ViewSpaceNormal = normalize(mul(WorldNormal, (float3x3)ViewMatrix));
+	
+	//ViewSpaceNormal = ViewSpaceNormal * 0.5 + 0.5;
+	//Out.Target0 = float4(ViewSpaceNormal, 0);
+	//return Out;
 
  	// view position
 	float3 ViewSpacePos = ReconstructViewPos(Tex);
 	float3 ViewDir = normalize(-ViewSpacePos);
 
-	float Sum = 0.0;
-
-	const float phi = Params.x * PI;
-	float2 ScreenDir = float2(cos(phi), sin(phi));
+#if 1
+	int2 iPos = int2(ScreenPos.xy);
+	float3 RandomAndOffset = GetRandomVector(iPos);
+	float2 RandomVec = RandomAndOffset.xy;
+	float2 ScreenDir = float2(RandomVec.x, RandomVec.y);
+#else
+	float2 ScreenDir = float2(GTAOParams[0], GTAOParams[1]);
+#endif
 
 	uint NumAngles = (uint)c_NumAngles;
 	float SinDeltaAngle = sin(PI / c_NumAngles);
 	float CosDeltaAngle = cos(PI / c_NumAngles);
 
+	float Sum = 0.0;
 	for (uint Angle = 0; Angle < NumAngles; Angle++)
 	{
 		float2 horizons = SearchForLargestAngleDual(GTAO_NUMTAPS, Tex, ScreenDir, ViewSpacePos, ViewDir);
@@ -168,6 +215,8 @@ PixelOutput PS_GTAO(float2 Tex : TEXCOORD, float4 ScreenPos : SV_Position)
 
 	float AO = Sum;
 	AO = AO / ((float)NumAngles);
+
+	//AO = MutiBounce(AO, float3(1, 1, 1));
 
 	Out.Target0 = float4(AO, AO, AO, 1);
 	return Out;
