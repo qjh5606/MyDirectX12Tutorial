@@ -359,7 +359,7 @@ float LinearEyeDepth(float depth, float near, float far)
 float Linear01Depth(float depth, float near, float far)
 {
 	float z = LinearEyeDepth(depth, near, far);
-	t = (z - near) / (far - near);
+	float t = (z - near) / (far - near);
 	return t;
 }
 
