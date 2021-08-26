@@ -1,6 +1,9 @@
 #pragma pack_matrix(row_major)
 
-const static float PI = 3.1415926535897932f;
+const static float PI			=	3.1415926535897932f;
+const static float TWO_PI		=	6.2831853071795864f;
+const static float HALF_PI		=	1.5707963267948966f;
+const static float ONE_OVER_PI	=	0.3183098861837906f;
 
 float Pow2(float x)
 {
@@ -347,16 +350,17 @@ float Luminance(float3 Linear)
 }
 
 // convert view space linear depth
-float Linear01Depth(float depth, float near, float far)
+float LinearEyeDepth(float depth, float near, float far)
 {
 	float z = depth;
 	return (near * far) / (far - z * (far - near));
 }
 
-float LinearEyeDepth(float depth,float near,float far)
+float Linear01Depth(float depth, float near, float far)
 {
-	float t = Linear01Depth(depth, near, far);
-	return lerp(near, far, t);
+	float z = LinearEyeDepth(depth, near, far);
+	t = (z - near) / (far - near);
+	return t;
 }
 
 float2 ViewportUVToScreenPos(float2 ViewportUV)
