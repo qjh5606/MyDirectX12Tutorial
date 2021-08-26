@@ -18,7 +18,7 @@ cbuffer PSContant : register(b0)
 	float		NumSamples;
 	float		TraceRadius;
 	float		MaxRadiusPixels;
-	float2		FocalLen;
+	float2		ClipInfo;
 };
 
 struct PixelOutput
@@ -179,8 +179,8 @@ PixelOutput PS_HBAO(float2 Tex : TEXCOORD, float4 ScreenPos : SV_Position)
 	float3 RandomVec = NoiseMap.SampleLevel(WrapLinearSampler, Tex * NoiseScale, 0).rgb;
 
 	// The 0.5 uv range corresponds to the camera fov angle
-	// FocalLen = 1 / tan(theta/2)
-	float2 rayRadiusUV = 0.5 * FocalLen * TraceRadius / P.z;
+	// ClipInfo = 1 / tan(theta/2)
+	float2 rayRadiusUV = 0.5 * ClipInfo * TraceRadius / P.z;
 	// radius in pixels
 	float rayRadiusPix = rayRadiusUV.x * Resolution.x;
 

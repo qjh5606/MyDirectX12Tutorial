@@ -19,7 +19,7 @@ using namespace BufferManager;
 namespace AmbientOcclusion
 {
 	bool					g_EnableAO = true;
-	int						g_AOType = AOType::HBAO;
+	int						g_AOType = AOType::GTAO;
 
 	// SSAO
 	float					g_SSAOTraceRadius = 0.5f;
@@ -32,6 +32,9 @@ namespace AmbientOcclusion
 	float					g_HBAOTraceRadius = 0.5f;
 	int						g_HBAOMaxRadiusPixels = 50;
 	int						g_HBAOBlurRadius = 2;
+
+	// GTAO
+	int						CurrSampleFrame = 0;
 
 	FColorBuffer			g_AOBuffer;
 	FTexture				g_SSAONoise;
@@ -50,6 +53,8 @@ namespace AmbientOcclusion
 	FGraphicsPipelineState	m_HBAOPSO;
 	ComPtr<ID3DBlob>		m_HBAOPS;
 
+	FGraphicsPipelineState	m_GTAOPSO;
+	ComPtr<ID3DBlob>		m_GTAOPS;
 }
 
 float RandomFloat(float LO = 0.0f, float HI = 1.0f)
@@ -128,6 +133,7 @@ void AmbientOcclusion::Initialize()
 	m_SSAOPS = D3D12RHI::Get().CreateShader(L"../Resources/Shaders/SSAO.hlsl", "PS_SSAO", "ps_5_1");
 	m_SSAOBlurPS = D3D12RHI::Get().CreateShader(L"../Resources/Shaders/SSAO_Blur.hlsl", "PS_SSAO_Blur", "ps_5_1");
 	m_HBAOPS = D3D12RHI::Get().CreateShader(L"../Resources/Shaders/HBAO.hlsl", "PS_HBAO", "ps_5_1");
+	m_GTAOPS = D3D12RHI::Get().CreateShader(L"../Resources/Shaders/GTAO.hlsl", "PS_GTAO", "ps_5_1");
 
 	// PSO
 	FSamplerDesc LinearSampler(D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
@@ -160,6 +166,11 @@ void AmbientOcclusion::Initialize()
 	m_HBAOPSO = m_SSAOPSO;
 	m_HBAOPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(m_HBAOPS.Get()));
 	m_HBAOPSO.Finalize();
+
+	// GTAO
+	m_GTAOPSO = m_SSAOPSO;
+	m_GTAOPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(m_GTAOPS.Get()));
+	m_GTAOPSO.Finalize();
 }
 
 void AmbientOcclusion::Destroy()
@@ -288,7 +299,7 @@ void AmbientOcclusion::RenderHBAO(FCommandContext& CommandContext, FCamera& Came
 			float		NumSamples;
 			float		TraceRadius;
 			float		MaxRadiusPixels;
-			Vector2f	FocalLen;
+			Vector2f	ClipInfo;
 		} Constants;
 
 		Constants.InvProjMatrix = Camera.GetProjectionMatrix().Inverse();
@@ -303,8 +314,8 @@ void AmbientOcclusion::RenderHBAO(FCommandContext& CommandContext, FCamera& Came
 		Constants.MaxRadiusPixels = g_HBAOMaxRadiusPixels;
 
 		float fovRad = Camera.GetFovY();
-		Constants.FocalLen[0] = 1.0f / tanf(fovRad * 0.5f) * (Height / Width);
-		Constants.FocalLen[1] = 1.0f / tanf(fovRad * 0.5f);
+		Constants.ClipInfo[0] = 1.0f / tanf(fovRad * 0.5f) * (Height / Width);
+		Constants.ClipInfo[1] = 1.0f / tanf(fovRad * 0.5f);
 
 		CommandContext.SetDynamicConstantBufferView(0, sizeof(Constants), &Constants);
 
@@ -348,12 +359,92 @@ void AmbientOcclusion::RenderHBAO(FCommandContext& CommandContext, FCamera& Came
 
 void AmbientOcclusion::RenderGTAO(FCommandContext& CommandContext, FCamera& Camera)
 {
+	const float rotations[6] = { 60.0f, 300.0f, 180.0f, 240.0f, 120.0f, 0.0f };
+	const float offsets[4] = { 0.1f, 0.6f, 0.35f, 0.85f };
+
 	// GTAO Generate
 	{
-		UserMarker GPUMaker(CommandContext, "HBAO Generate");
+		UserMarker GPUMaker(CommandContext, "GTAO Generate");
 
+		CommandContext.SetRootSignature(m_AOSignature);
+		CommandContext.SetPipelineState(m_GTAOPSO);
 
+		CommandContext.TransitionResource(g_GBufferA, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		CommandContext.TransitionResource(g_SceneDepthZ, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_DEPTH_READ);
+		CommandContext.TransitionResource(g_GBufferC, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		CommandContext.TransitionResource(g_HBAONoise, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+		CommandContext.TransitionResource(g_AOBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		CommandContext.SetRenderTargets(1, &g_AOBuffer.GetRTV(), g_SceneDepthZ.GetDSV());
+		CommandContext.ClearColor(g_AOBuffer);
+
+		__declspec(align(16)) struct
+		{
+			FMatrix		InvProjMatrix;
+			FMatrix		ViewMatrix;
+			Vector4f	Resolution;			// width height 1/width 1/height
+			Vector4f	ClipInfo;
+			Vector2f	Params;				// angle and offset
+		} Constants;
+
+		Constants.InvProjMatrix = Camera.GetProjectionMatrix().Inverse();
+		Constants.ViewMatrix = Camera.GetViewMatrix();
+
+		float Width = static_cast<float>(g_AOBuffer.GetWidth());
+		float Height = static_cast<float>(g_AOBuffer.GetHeight());
+		Constants.Resolution = Vector4f(Width, Height, 1.0f / Width, 1.0f / Height);
+
+		// start rotation
+		Constants.Params[0] = rotations[CurrSampleFrame % 6] / 360.0f;
+		Constants.Params[1] = offsets[(CurrSampleFrame / 6) % 4];
+
+		// near far
+		Constants.ClipInfo[0] = Camera.GetNearClip();
+		Constants.ClipInfo[1] = Camera.GetFarClip();
+
+		float HalfFovY = Camera.GetFovY() * 0.5f;
+		float Ratio = Width / Height;
+		Constants.ClipInfo[2] = tan(HalfFovY) * Ratio;
+		Constants.ClipInfo[3] = tan(HalfFovY);
+
+		CommandContext.SetDynamicConstantBufferView(0, sizeof(Constants), &Constants);
+
+		CommandContext.SetDynamicDescriptor(1, 0, g_GBufferA.GetSRV());
+		CommandContext.SetDynamicDescriptor(1, 1, g_GBufferC.GetSRV());
+		CommandContext.SetDynamicDescriptor(1, 2, g_SceneDepthZ.GetSRV());
+		CommandContext.SetDynamicDescriptor(1, 3, g_HBAONoise.GetSRV());
+
+		// no need to set vertex buffer and index buffer
+		CommandContext.Draw(3);
 	}
 
+	// GTAO Blur
+	{
+		UserMarker GPUMaker(CommandContext, "GTAO Blur");
+
+		CommandContext.SetRootSignature(m_AOSignature);
+		CommandContext.SetPipelineState(m_SSAOBlurPSO);
+
+		CommandContext.TransitionResource(g_AOBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		CommandContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
+		CommandContext.SetRenderTargets(1, &g_SceneColorBuffer.GetRTV(), g_SceneDepthZ.GetDSV());
+		CommandContext.ClearColor(g_SceneColorBuffer);
+
+		__declspec(align(16)) struct
+		{
+			Vector2f	texelSize;
+			int			BlurRadius;
+		} Constants;
+
+		Constants.texelSize = Vector2f(1.0f / static_cast<float>(g_SceneColorBuffer.GetWidth()), 1.0f / static_cast<float>(g_SceneColorBuffer.GetHeight()));
+		Constants.BlurRadius = g_HBAOBlurRadius;
+
+		CommandContext.SetDynamicConstantBufferView(0, sizeof(Constants), &Constants);
+
+		CommandContext.SetDynamicDescriptor(1, 0, g_AOBuffer.GetSRV());
+		// no need to set vertex buffer and index buffer
+		CommandContext.Draw(3);
+	}
+
+	CurrSampleFrame = (CurrSampleFrame + 1) % 6;
 }

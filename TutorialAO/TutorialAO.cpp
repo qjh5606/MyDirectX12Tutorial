@@ -337,9 +337,11 @@ private:
 
 		m_Sponza->Draw(GfxContext);
 
+#if 0
 		BasePass_VSConstants.ModelMatrix = m_Lucky->GetModelMatrix();
 		GfxContext.SetDynamicConstantBufferView(0, sizeof(BasePass_VSConstants), &BasePass_VSConstants);
 		m_Lucky->Draw(GfxContext);
+#endif
 	}
 
 private:

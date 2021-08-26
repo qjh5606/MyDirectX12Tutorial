@@ -152,6 +152,7 @@ set(SHADER_FILES
 	../Resources/shaders/SSAO.hlsl
 	../Resources/shaders/SSAO_Blur.hlsl
 	../Resources/shaders/HBAO.hlsl
+	../Resources/shaders/GTAO.hlsl
 )
 
 source_group("Shaders" FILES ${SHADER_FILES})
