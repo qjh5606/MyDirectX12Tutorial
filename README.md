@@ -45,8 +45,8 @@ Table of contents
 
 - [TAA](#taa)
 - [LTC](#ltc)
-- [Skin Rendering](#skinrendering)
-- [Ambient Occlusion](#ambientpcclusion)
+- [Skin Rendering](#skin-rendering)
+- [Ambient Occlusion](#ambient-occlusion)
 
 
 
