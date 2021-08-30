@@ -108,7 +108,20 @@ Table of contents
 
 
 
-<iframe height=752 width=1011 src="Tutorial09/Result/TAA.mp4">
+**关闭TAA**：
+
+![](Tutorial09/Result/No-TAA.png)
+
+**开启TAA**
+
+![](Tutorial09/Result/TAA.png)
+
+
+
+**相机和物体运动情况下的TAA效果**
+
+- [TAA的动态效果](https://www.bilibili.com/video/BV1aA411c7nc)
+
 
 
 
