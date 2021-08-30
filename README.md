@@ -37,7 +37,7 @@
 
 
 
-Table of contents
+部分示例
 =================
 
 * [IBL Maps Generator](#ibl-maps-generator)
