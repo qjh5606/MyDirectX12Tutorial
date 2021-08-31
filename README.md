@@ -40,6 +40,8 @@
 部分示例
 =================
 
+- [Shadow Mapping](#shadow-mapping)
+
 * [IBL Maps Generator](#ibl-maps-generator)
 * [IBL+PBR](#iblpbr)
 
@@ -47,6 +49,18 @@
 - [LTC](#ltc)
 - [Skin Rendering](#skin-rendering)
 - [Ambient Occlusion](#ambient-occlusion)
+
+
+
+## Shadow Mapping
+
+笔记：
+
+- 
+
+**VSM（Variance shadow maps）**
+
+![](Tutorial07/Result/Tutorial07.png)
 
 
 
