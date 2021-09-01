@@ -20,6 +20,7 @@
 #include "GameInput.h"
 #include "BufferManager.h"
 #include "ImguiManager.h"
+#include "UserMarkers.h"
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
@@ -167,27 +168,16 @@ private:
 		m_BlurVerticalShader = D3D12RHI::Get().CreateShader(L"../Resources/Shaders/BlurVerticalCS.hlsl", "cs_main", "cs_5_1");
 	}
 
-	ID3DBlob* GetPixelShaderByMode(EShadowMode ShadowMode)
-	{
-		switch (ShadowMode)
-		{
-		case SM_Raw:
-			return m_PixelShaderRaw.Get();
-		case SM_PCF:
-			return m_PixelShaderPCF.Get();
-		case SM_VSM:
-			return m_PixelShaderVSM.Get();
-		default:
-			return nullptr;
-		}
-	}
-
 	void SetupPipelineState()
 	{
+		std::vector<D3D12_INPUT_ELEMENT_DESC> MeshLayout;
+		m_Box->GetMeshLayout(MeshLayout);
+		Assert(MeshLayout.size() > 0);
+
 		// root signature
 		FSamplerDesc DefaultSamplerDesc;
 		FSamplerDesc ShadowSamplerDesc;
-		ShadowSamplerDesc.SetShadowMapPCFDesc(); //SetShadowMapPCFDesc
+		ShadowSamplerDesc.SetShadowMapPCFDesc();
 
 		m_RootSignature.Reset(3, 2);
 		m_RootSignature[0].InitAsBufferCBV(0, D3D12_SHADER_VISIBILITY_VERTEX);
@@ -197,33 +187,36 @@ private:
 		m_RootSignature.InitStaticSampler(1, ShadowSamplerDesc, D3D12_SHADER_VISIBILITY_PIXEL);
 		m_RootSignature.Finalize(L"RootSignature", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-		m_PipelineState.SetRootSignature(m_RootSignature);
-		m_PipelineState.SetRasterizerState(FPipelineState::RasterizerDefault);
-		m_PipelineState.SetBlendState(FPipelineState::BlendDisable);
-		m_PipelineState.SetDepthStencilState(FPipelineState::DepthStateReadWrite);
-		
-		std::vector<D3D12_INPUT_ELEMENT_DESC> MeshLayout;
-		m_Box->GetMeshLayout(MeshLayout);
-		Assert(MeshLayout.size() > 0);
-		m_PipelineState.SetInputLayout((UINT)MeshLayout.size(), &MeshLayout[0]);
-
-		m_PipelineState.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-		m_PipelineState.SetRenderTargetFormats(1, &RenderWindow::Get().GetColorFormat(), g_SceneDepthZ.GetFormat());
-		m_PipelineState.SetVertexShader(CD3DX12_SHADER_BYTECODE(m_VertexShader.Get()));
-		m_PipelineState.SetPixelShader(CD3DX12_SHADER_BYTECODE(GetPixelShaderByMode((EShadowMode)m_ShadowMode)));
-		m_PipelineState.Finalize();
-
-		m_ShadowPSO.SetRootSignature(m_RootSignature);
-		m_ShadowPSO.SetRasterizerState(FPipelineState::RasterizerShadow);
-		m_ShadowPSO.SetBlendState(FPipelineState::BlendNoColorWrite);
-		m_ShadowPSO.SetDepthStencilState(FPipelineState::DepthStateReadWrite);
-		m_ShadowPSO.SetInputLayout((UINT)MeshLayout.size(), &MeshLayout[0]);
-		m_ShadowPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		// Shaodw Map
+		m_ShadowMapPSO.SetRootSignature(m_RootSignature);
+		m_ShadowMapPSO.SetRasterizerState(FPipelineState::RasterizerShadow);
+		m_ShadowMapPSO.SetBlendState(FPipelineState::BlendNoColorWrite);
+		m_ShadowMapPSO.SetDepthStencilState(FPipelineState::DepthStateReadWrite);
+		m_ShadowMapPSO.SetInputLayout((UINT)MeshLayout.size(), &MeshLayout[0]);
+		m_ShadowMapPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 		m_ShadowBuffer.Create(L"Shadow Map", SHADOW_BUFFER_SIZE, SHADOW_BUFFER_SIZE);
-		m_ShadowPSO.SetRenderTargetFormats(0, nullptr, m_ShadowBuffer.GetFormat());
-		m_ShadowPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(m_VertexShader.Get()));
-		m_ShadowPSO.Finalize();
+		m_ShadowMapPSO.SetRenderTargetFormats(0, nullptr, m_ShadowBuffer.GetFormat());
+		m_ShadowMapPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(m_VertexShader.Get()));
+		m_ShadowMapPSO.Finalize();
 
+		// Raw
+		m_ShadowRawPSO.SetRootSignature(m_RootSignature);
+		m_ShadowRawPSO.SetRasterizerState(FPipelineState::RasterizerDefault);
+		m_ShadowRawPSO.SetBlendState(FPipelineState::BlendDisable);
+		m_ShadowRawPSO.SetDepthStencilState(FPipelineState::DepthStateReadWrite);
+		m_ShadowRawPSO.SetInputLayout((UINT)MeshLayout.size(), &MeshLayout[0]);
+		m_ShadowRawPSO.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+		m_ShadowRawPSO.SetRenderTargetFormats(1, &RenderWindow::Get().GetColorFormat(), g_SceneDepthZ.GetFormat());
+		m_ShadowRawPSO.SetVertexShader(CD3DX12_SHADER_BYTECODE(m_VertexShader.Get()));
+		m_ShadowRawPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(m_PixelShaderRaw.Get()));
+		m_ShadowRawPSO.Finalize();
+
+		// PCF
+		m_ShadowPCFPSO = m_ShadowRawPSO;
+		m_ShadowPCFPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(m_PixelShaderPCF.Get()));
+		m_ShadowPCFPSO.Finalize();
+
+		// Blurred VSM
 		m_CSSignature.Reset(2, 0);
 		m_CSSignature[0].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
 		m_CSSignature[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
@@ -247,12 +240,19 @@ private:
 		m_BlurVerticalPSO.Finalize();
 
 		m_BlurredVSMBuffer.Create(L"Blurred VSM Buffer", SHADOW_BUFFER_SIZE, SHADOW_BUFFER_SIZE, 1, DXGI_FORMAT_R16G16_UNORM);
+
+		// VSM
+		m_ShadowVSMPSO = m_ShadowPCFPSO;
+		m_ShadowVSMPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(m_PixelShaderVSM.Get()));
+		m_ShadowVSMPSO.Finalize();
 	}
 
 	void ShadowPass(FCommandContext& CommandContext)
 	{
+		UserMarker GPUMaker(CommandContext, "ShadowPass");
+
 		CommandContext.SetRootSignature(m_RootSignature);
-		CommandContext.SetPipelineState(m_ShadowPSO);
+		CommandContext.SetPipelineState(m_ShadowMapPSO);
 		CommandContext.SetViewportAndScissor(0, 0, m_ShadowBuffer.GetWidth(), m_ShadowBuffer.GetHeight());
 		CommandContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -348,13 +348,28 @@ private:
 
 	void ColorPass(FCommandContext& CommandContext)
 	{
+		UserMarker GPUMaker(CommandContext, "ColorPass");
+
 		if (m_ShadowMode == SM_VSM)
 		{
 			g_CommandListManager.GetGraphicsQueue().StallForProducer(g_CommandListManager.GetComputeQueue());
 		}
 		// Set necessary state.
 		CommandContext.SetRootSignature(m_RootSignature);
-		CommandContext.SetPipelineState(m_PipelineState);
+
+		if (m_ShadowMode == SM_PCF)
+		{
+			CommandContext.SetPipelineState(m_ShadowPCFPSO);
+		}
+		else if (m_ShadowMode == SM_VSM)
+		{
+			CommandContext.SetPipelineState(m_ShadowVSMPSO);
+		}
+		else if (m_ShadowMode == SM_Raw)
+		{
+			CommandContext.SetPipelineState(m_ShadowRawPSO);
+		}
+		
 		CommandContext.SetViewportAndScissor(0, 0, m_GameDesc.Width, m_GameDesc.Height);
 		CommandContext.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -371,6 +386,7 @@ private:
 		{
 			CommandContext.TransitionResource(m_ShadowBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
+
 		CommandContext.SetRenderTargets(1, &BackBuffer.GetRTV(), g_SceneDepthZ.GetDSV());
 
 		// Record commands.
@@ -410,8 +426,12 @@ private:
 	FRootSignature m_RootSignature;
 	FRootSignature m_CSSignature;
 
-	FGraphicsPipelineState m_PipelineState;
-	FGraphicsPipelineState m_ShadowPSO;
+	FGraphicsPipelineState m_ShadowMapPSO;
+
+	FGraphicsPipelineState m_ShadowRawPSO;
+	FGraphicsPipelineState m_ShadowPCFPSO;
+	FGraphicsPipelineState m_ShadowVSMPSO;
+
 	FComputePipelineState m_VSMConvertPSO;
 	FComputePipelineState m_BlurPSO;
 	FComputePipelineState m_BlurHorizontalPSO;
@@ -440,7 +460,7 @@ private:
 	FCamera m_Camera;
 	FDirectionalLight m_DirectionLight;
 
-	int m_ShadowMode = SM_VSM;
+	int m_ShadowMode = SM_PCF;
 	Vector3f m_ClearColor = Vector3f(0.5f, 0.58f, 0.8f);
 };
 
