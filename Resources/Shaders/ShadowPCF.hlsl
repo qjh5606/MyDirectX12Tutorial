@@ -12,12 +12,10 @@ cbuffer PSConstant : register(b0)
 	float3 LightDirection;
 }
 
-#define FILTER_SIZE 2
-
 Texture2D DiffuseTexture				: register(t0);
 Texture2D ShadowMap						: register(t1);
 SamplerState LinearSampler				: register(s0);
-SamplerComparisonState ShadowSampler	: register(s1);
+SamplerState ShadowSampler				: register(s1);
 
 
 struct VertexOutput
@@ -33,9 +31,10 @@ struct PixelOutput
     float4 outFragColor : SV_Target0;
 };
 
-float DoSampleCmp(float2 SubTexelCoord, float CurrentDepth, int2 TexelOffset)
+float Visibility(float d, float2 uv)
 {
-	return ShadowMap.SampleCmpLevelZero(ShadowSampler, SubTexelCoord, CurrentDepth, TexelOffset);
+	float z = ShadowMap.Sample(ShadowSampler, uv).x;
+	return z >= d;
 }
 
 float SampleFixedSizePCF(float3 ShadowPos, float3 LightDirection, float3 Normal)
@@ -47,10 +46,13 @@ float SampleFixedSizePCF(float3 ShadowPos, float3 LightDirection, float3 Normal)
 	ShadowMap.GetDimensions(0, ShadowMapSize.x, ShadowMapSize.y, NumSlices);
 	float2 texelSize = 1.0 / ShadowMapSize;
 
-	for (float i = -2.5f; i < 3.0f; ++i) {
-		for (float j = -2.5f; j < 3.0f; ++j) {
-			int2 TexelOffset = int2(i, j);
-			shadow += DoSampleCmp(ShadowPos.xy, ShadowPos.z, TexelOffset);
+	float CurentDepth = saturate(ShadowPos.z);
+
+	for (float i = -2.5f; i < 3.f; ++i) 
+	{
+		for (float j = -2.5f; j < 3.f; ++j) 
+		{
+			shadow += Visibility(CurentDepth, ShadowPos.xy + float2(i, j) * texelSize);
 		}
 	}
 
@@ -58,7 +60,6 @@ float SampleFixedSizePCF(float3 ShadowPos, float3 LightDirection, float3 Normal)
 	shadow = saturate(shadow);
 	return shadow;
 }
-
 
 float ComputeShadow(float4 ShadowCoord, float3 Normal)
 {

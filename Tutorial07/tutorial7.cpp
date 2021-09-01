@@ -84,6 +84,7 @@ public:
 	
 	void OnGUI(FCommandContext& CommandContext)
 	{
+		UserMarker GPUMaker(CommandContext, "GUI");
 		ImguiManager::Get().NewFrame();
 
 		ImGui::Begin("Background Color", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
