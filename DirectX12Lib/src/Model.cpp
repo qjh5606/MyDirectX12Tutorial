@@ -83,6 +83,21 @@ void FModel::GetMeshLayout(std::vector<D3D12_INPUT_ELEMENT_DESC>& MeshLayout)
 	}
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE FModel::GetTextureView(uint32_t SubMeshIndex, uint32_t TexIndex)
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE Result;
+	Result.ptr = 0;
+	if (SubMeshIndex < m_MeshData->GetMeshCount())
+	{
+		size_t MtlIndex = m_MeshData->GetSubMaterialIndex(SubMeshIndex);
+		if (MtlIndex < m_MeshData->GetMaterialCount() && TexIndex < TEX_PER_MATERIAL)
+		{
+			Result = m_Textures[TEX_PER_MATERIAL * MtlIndex + TexIndex].GetSRV();
+		}
+	}
+	return Result;
+}
+
 void FModel::SetScale(float Scale)
 {
 	m_Scale = Vector3f(Scale);
