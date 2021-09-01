@@ -17,6 +17,7 @@
 #include "Model.h"
 #include "ShadowBuffer.h"
 #include "Light.h"
+#include "ImguiManager.h"
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
@@ -28,7 +29,6 @@ extern FCommandListManager g_CommandListManager;
 
 
 const int SHADOW_BUFFER_SIZE = 1024;
-const static bool USE_CS = true;
 
 
 class Tutorial8 : public FGame
@@ -57,17 +57,34 @@ public:
 		m_Constants.InvProjectionMatrix = m_Camera.GetProjectionMatrix().Inverse();
 		m_Constants.InvViewMatrix = m_Camera.GetViewMatrix().Inverse();
 	}
-	
+
+	void OnGUI(FCommandContext& CommandContext)
+	{
+		ImguiManager::Get().NewFrame();
+
+		ImGui::Begin("config", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::BeginGroup();
+		ImGui::Checkbox("Use Compute Shader", &m_bUseComputeShader);
+		ImGui::EndGroup();
+
+		ImGui::End();
+
+		ImguiManager::Get().Render(CommandContext, RenderWindow::Get());
+	}
+
 	void OnRender()
 	{
 		FCommandContext& CommandContext = FCommandContext::Begin(D3D12_COMMAND_LIST_TYPE_DIRECT, L"3D Queue");
 
-		if (USE_CS)
+		if (m_bUseComputeShader)
 			ScatteringPassCS(CommandContext);
 		else
 			ScatteringPassPS(CommandContext);
 		PostProcess(CommandContext);
-		
+
+		OnGUI(CommandContext);
+
+		CommandContext.TransitionResource(RenderWindow::Get().GetBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 		CommandContext.Finish(true);
 
 		RenderWindow::Get().Present();
@@ -83,7 +100,7 @@ private:
 
 		m_Constants.DensityScaleHeight = Vector2f(8000.0f, 1200.f);
 		m_Constants.AtmosphereRadius = AtmospherRadius;
-		m_Constants.RayleiCoef = Vector3f(5.802f, 13.558f, 33.1f) * 1e-6f; 
+		m_Constants.RayleiCoef = Vector3f(5.802f, 13.558f, 33.1f) * 1e-6f;
 		m_Constants.MieG = 0.8f; //[-1, 1], from backward to forward
 		m_Constants.MieCoef = 21e-6f;
 
@@ -106,7 +123,7 @@ private:
 		}
 		else
 		{
-			m_Camera = FCamera(Vector3f(0.f, 0.f, -AtmospherRadius*3), Vector3f(0.f, 0, 0.f), Vector3f(0.f, 1.f, 0.f));
+			m_Camera = FCamera(Vector3f(0.f, 0.f, -AtmospherRadius * 3), Vector3f(0.f, 0, 0.f), Vector3f(0.f, 1.f, 0.f));
 
 			const float FovVertical = MATH_PI / 4.f;
 			m_Camera.SetPerspectiveParams(FovVertical, (float)GetDesc().Width / GetDesc().Height, 0.1f, 100.f);
@@ -176,7 +193,7 @@ private:
 		m_ScatteringPSPSO.SetPixelShader(CD3DX12_SHADER_BYTECODE(m_ScatteringPS.Get()));
 		m_ScatteringPSPSO.Finalize();
 	}
-	
+
 	void ScatteringPassCS(FCommandContext& GfxContext)
 	{
 		GfxContext.TransitionResource(m_ScatteringBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, true);
@@ -187,15 +204,15 @@ private:
 		CommandContext.SetRootSignature(m_ScatteringSignature);
 		CommandContext.SetPipelineState(m_ScatteringCSPSO);
 
-		
+
 		CommandContext.SetDynamicConstantBufferView(0, sizeof(m_Constants), &m_Constants);
 		CommandContext.SetDynamicDescriptor(2, 0, m_ScatteringBuffer.GetUAV());
 
-		uint32_t GroupCountX = (m_GameDesc.Width  + 7) / 8;
+		uint32_t GroupCountX = (m_GameDesc.Width + 7) / 8;
 		uint32_t GroupCountY = (m_GameDesc.Height + 7) / 8;
 
 		CommandContext.Dispatch(GroupCountX, GroupCountY, 1);
-		
+
 		CommandContext.Finish(false);
 	}
 
@@ -218,7 +235,7 @@ private:
 
 	void PostProcess(FCommandContext& GfxContext)
 	{
-		if (USE_CS)
+		if (m_bUseComputeShader)
 		{
 			g_CommandListManager.GetGraphicsQueue().StallForProducer(g_CommandListManager.GetComputeQueue());
 		}
@@ -230,21 +247,19 @@ private:
 
 		RenderWindow& renderWindow = RenderWindow::Get();
 		FColorBuffer& BackBuffer = renderWindow.GetBackBuffer();
-		
+
 		// Indicate that the back buffer will be used as a render target.
 		GfxContext.TransitionResource(m_ScatteringBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		GfxContext.TransitionResource(BackBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, true);
-		
+
 		GfxContext.SetRenderTargets(1, &BackBuffer.GetRTV());
 
 		GfxContext.ClearColor(BackBuffer);
-	
+
 		GfxContext.SetDynamicDescriptor(0, 0, m_ScatteringBuffer.GetSRV());
 
 		// no need to set vertex buffer and index buffer
 		GfxContext.Draw(3);
-		
-		GfxContext.TransitionResource(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
 	}
 
 private:
@@ -275,6 +290,8 @@ private:
 	ComPtr<ID3DBlob> m_ScreenQuadVS;
 	ComPtr<ID3DBlob> m_PostPS;
 	ComPtr<ID3DBlob> m_ScatteringPS;
+
+	bool m_bUseComputeShader = true;
 
 	FCamera m_Camera;
 	FDirectionalLight m_DirectionLight;
