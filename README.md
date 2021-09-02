@@ -56,7 +56,7 @@
 
 笔记：
 
-- 
+- [黑键 - 实时阴影渲染](https://blog.csdn.net/qjh5606/article/details/120070553)
 
 **VSM（Variance shadow maps）**
 
