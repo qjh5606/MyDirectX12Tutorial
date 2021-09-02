@@ -62,6 +62,6 @@ PixelOutput ps_main(VertexOutput Input)
 	PixelOutput output;
 	float4 texColor = DiffuseTexture.Sample( LinearSampler, Input.tex );
 	float Shadow = ComputeShadow(Input.ShadowCoord, Input.normal);
-	output.outFragColor = texColor * saturate(0.2 + Shadow);
+	output.outFragColor = texColor * saturate(Shadow);
 	return output;
 }
