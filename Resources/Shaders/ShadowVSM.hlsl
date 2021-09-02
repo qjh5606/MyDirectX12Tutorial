@@ -64,16 +64,8 @@ PixelOutput ps_main(VertexOutput Input)
 	PixelOutput output;
 	float4 texColor = DiffuseTexture.Sample(LinearSampler, Input.tex);
 	float Shadow = ComputeShadow(Input.ShadowCoord, Input.normal);
-	// use NoL to fix light leaking
 	float NoL = dot(-LightDirection, Input.normal);
-	if (NoL > 0)
-	{
-		NoL = 1;
-	}
-	else
-	{
-		NoL = saturate(NoL);
-	}
-	output.outFragColor = texColor * (NoL * saturate(Shadow));
+	NoL = saturate(NoL);
+	output.outFragColor = texColor * (NoL * saturate(Shadow) + 0.2);
 	return output;
 }
