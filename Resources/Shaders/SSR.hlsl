@@ -250,6 +250,7 @@ float4 PS_SSR(float2 Tex : TEXCOORD, float4 SVPosition : SV_Position) : SV_Targe
 		float2 E = Hammersley16(i, NumRays, Random);
 		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV).xyz, TangentBasis);
 		float3 L = 2 * dot(V, H) * H - V;
+		
 		//float3 L = reflect(-V, N);
 
 		float3 World1 = World0 + L * WorldThickness;

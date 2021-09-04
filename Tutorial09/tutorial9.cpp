@@ -75,7 +75,6 @@ public:
 		//GeneratePrefilteredMap();
 
 		//SaveCubeMap();
-		PostProcessing::g_EnableSSR = false;
 	}
 
 	void OnShutdown()
