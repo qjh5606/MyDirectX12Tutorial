@@ -105,8 +105,9 @@
 
 - [黑键 - PBR回顾](https://blog.csdn.net/qjh5606/article/details/118558172)
 - [黑键 - 泛光（Bloom）](https://blog.csdn.net/qjh5606/article/details/119005531)
-
 - [黑键 - 景深效果（DOF）](https://blog.csdn.net/qjh5606/article/details/118960868)
+- [黑键 - 屏幕空间反射（SSR）](https://blog.csdn.net/qjh5606/article/details/120102582)
+
 
 示例最终包含IBL、PBR、Bloom、SSR等渲染效果。
 
