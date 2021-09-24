@@ -202,4 +202,6 @@
 
 **GTAO**
 
+- TODO：效果不对，需要Debug。
+
 ![](TutorialAO/Result/3-GTAO.png)
